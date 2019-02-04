@@ -84,8 +84,22 @@ void AddLandmarkCostFunctions(
     std::map<std::string, CeresPose>* C_landmarks, ceres::Problem* problem) {
   for (const auto& landmark_node : landmark_nodes) {
     // Do not use landmarks that were not optimized for localization.
-    if (!landmark_node.second.global_landmark_pose.has_value() &&
-        freeze_landmarks) {
+    // if (landmark_node.second.global_landmark_pose.has_value()) {
+    //   std::cout << "global id: " << landmark_node.first << std::endl;
+    //   std::cout << "global landmark pose: " << landmark_node.second.global_landmark_pose.value().translation() << std::endl;
+    // }
+    // freeze_landmarks = false;
+    // if (landmark_node.first == "0") {
+    //   freeze_landmarks = true;
+    // }
+    // if (landmark_node.first == "1") {
+    //   freeze_landmarks = true;
+    // }
+    // if (landmark_node.first == "3") {
+    //   freeze_landmarks = true;
+    // }
+
+    if (!landmark_node.second.global_landmark_pose.has_value() && freeze_landmarks) {
       continue;
     }
     for (const auto& observation : landmark_node.second.landmark_observations) {
@@ -215,14 +229,20 @@ void OptimizationProblem2D::Solve(
   for (const auto& submap_id_data : submap_data_) {
     const bool frozen =
         frozen_trajectories.count(submap_id_data.id.trajectory_id) != 0;
+    // if (first_submap) {
+    //   C_submaps.Insert(submap_id_data.id, FromPose(transform::Rigid2d::Translation(Eigen::Vector2d(-5, -5))));
+    //   std::cout << "submap id: " << submap_id_data.id << std::endl;
+    //   std::cout << "C_submaps: " << submap_id_data.data.global_pose.translation() << std::endl;
+    // } else {
     C_submaps.Insert(submap_id_data.id,
                      FromPose(submap_id_data.data.global_pose));
+    // }
     problem.AddParameterBlock(C_submaps.at(submap_id_data.id).data(), 3);
     if (first_submap || frozen) {
       first_submap = false;
       // Fix the pose of the first submap or all submaps of a frozen
       // trajectory.
-      problem.SetParameterBlockConstant(C_submaps.at(submap_id_data.id).data());
+      // problem.SetParameterBlockConstant(C_submaps.at(submap_id_data.id).data());
     }
   }
   for (const auto& node_id_data : node_data_) {
@@ -246,78 +266,68 @@ void OptimizationProblem2D::Solve(
         C_nodes.at(constraint.node_id).data());
   }
   // Add cost functions for landmarks.
-  AddLandmarkCostFunctions(landmark_nodes, freeze_landmarks, node_data_,
-                           &C_nodes, &C_landmarks, &problem);
-  // Add penalties for violating odometry or changes between consecutive nodes
-  // if odometry is not available.
-  for (auto node_it = node_data_.begin(); node_it != node_data_.end();) {
-    const int trajectory_id = node_it->id.trajectory_id;
-    const auto trajectory_end = node_data_.EndOfTrajectory(trajectory_id);
-    if (frozen_trajectories.count(trajectory_id) != 0) {
-      node_it = trajectory_end;
-      continue;
-    }
 
-    auto prev_node_it = node_it;
-    for (++node_it; node_it != trajectory_end; ++node_it) {
-      const NodeId first_node_id = prev_node_it->id;
-      const NodeSpec2D& first_node_data = prev_node_it->data;
-      prev_node_it = node_it;
-      const NodeId second_node_id = node_it->id;
-      const NodeSpec2D& second_node_data = node_it->data;
-
-      if (second_node_id.node_index != first_node_id.node_index + 1) {
+    AddLandmarkCostFunctions(landmark_nodes, freeze_landmarks, node_data_, &C_nodes, &C_landmarks, &problem);
+    // Add penalties for violating odometry or changes between consecutive nodes
+    // if odometry is not available.
+    for (auto node_it = node_data_.begin(); node_it != node_data_.end();) {
+      const int trajectory_id = node_it->id.trajectory_id;
+      const auto trajectory_end = node_data_.EndOfTrajectory(trajectory_id);
+      if (frozen_trajectories.count(trajectory_id) != 0) {
+        node_it = trajectory_end;
         continue;
       }
 
-      // Add a relative pose constraint based on the odometry (if available).
-      std::unique_ptr<transform::Rigid3d> relative_odometry =
-          CalculateOdometryBetweenNodes(trajectory_id, first_node_data,
-                                        second_node_data);
-      if (relative_odometry != nullptr) {
-        problem.AddResidualBlock(
-            CreateAutoDiffSpaCostFunction(Constraint::Pose{
-                *relative_odometry, options_.odometry_translation_weight(),
-                options_.odometry_rotation_weight()}),
-            nullptr /* loss function */, C_nodes.at(first_node_id).data(),
-            C_nodes.at(second_node_id).data());
+      auto prev_node_it = node_it;
+      for (++node_it; node_it != trajectory_end; ++node_it) {
+        const NodeId first_node_id = prev_node_it->id;
+        const NodeSpec2D& first_node_data = prev_node_it->data;
+        prev_node_it = node_it;
+        const NodeId second_node_id = node_it->id;
+        const NodeSpec2D& second_node_data = node_it->data;
+
+        if (second_node_id.node_index != first_node_id.node_index + 1) {
+          continue;
+        }
+
+        // Add a relative pose constraint based on the odometry (if available).
+        std::unique_ptr<transform::Rigid3d> relative_odometry =
+            CalculateOdometryBetweenNodes(trajectory_id, first_node_data, second_node_data);
+        if (relative_odometry != nullptr) {
+          problem.AddResidualBlock(
+              CreateAutoDiffSpaCostFunction(Constraint::Pose{*relative_odometry, options_.odometry_translation_weight(),
+                                                             options_.odometry_rotation_weight()}),
+              nullptr /* loss function */, C_nodes.at(first_node_id).data(), C_nodes.at(second_node_id).data());
+        }
+
+        // Add a relative pose constraint based on consecutive local SLAM poses.
+        const transform::Rigid3d relative_local_slam_pose =
+            transform::Embed3D(first_node_data.local_pose_2d.inverse() * second_node_data.local_pose_2d);
+        problem.AddResidualBlock(CreateAutoDiffSpaCostFunction(Constraint::Pose{
+                                     relative_local_slam_pose, options_.local_slam_pose_translation_weight(),
+                                     options_.local_slam_pose_rotation_weight()}),
+                                 nullptr /* loss function */, C_nodes.at(first_node_id).data(),
+                                 C_nodes.at(second_node_id).data());
       }
-
-      // Add a relative pose constraint based on consecutive local SLAM poses.
-      const transform::Rigid3d relative_local_slam_pose =
-          transform::Embed3D(first_node_data.local_pose_2d.inverse() *
-                             second_node_data.local_pose_2d);
-      problem.AddResidualBlock(
-          CreateAutoDiffSpaCostFunction(
-              Constraint::Pose{relative_local_slam_pose,
-                               options_.local_slam_pose_translation_weight(),
-                               options_.local_slam_pose_rotation_weight()}),
-          nullptr /* loss function */, C_nodes.at(first_node_id).data(),
-          C_nodes.at(second_node_id).data());
     }
-  }
 
-  // Solve.
-  ceres::Solver::Summary summary;
-  ceres::Solve(
-      common::CreateCeresSolverOptions(options_.ceres_solver_options()),
-      &problem, &summary);
-  if (options_.log_solver_summary()) {
-    LOG(INFO) << summary.FullReport();
-  }
+    // Solve.
+    ceres::Solver::Summary summary;
+    ceres::Solve(common::CreateCeresSolverOptions(options_.ceres_solver_options()), &problem, &summary);
+    if (options_.log_solver_summary()) {
+      LOG(INFO) << summary.FullReport();
+    }
 
-  // Store the result.
-  for (const auto& C_submap_id_data : C_submaps) {
-    submap_data_.at(C_submap_id_data.id).global_pose =
-        ToPose(C_submap_id_data.data);
-  }
-  for (const auto& C_node_id_data : C_nodes) {
-    node_data_.at(C_node_id_data.id).global_pose_2d =
-        ToPose(C_node_id_data.data);
-  }
-  for (const auto& C_landmark : C_landmarks) {
-    landmark_data_[C_landmark.first] = C_landmark.second.ToRigid();
-  }
+    // Store the result.
+    for (const auto& C_submap_id_data : C_submaps) {
+      submap_data_.at(C_submap_id_data.id).global_pose = ToPose(C_submap_id_data.data);
+    }
+    for (const auto& C_node_id_data : C_nodes) {
+      node_data_.at(C_node_id_data.id).global_pose_2d = ToPose(C_node_id_data.data);
+    }
+    for (const auto& C_landmark : C_landmarks) {
+      landmark_data_[C_landmark.first] = C_landmark.second.ToRigid();
+    }
 }
 
 std::unique_ptr<transform::Rigid3d> OptimizationProblem2D::InterpolateOdometry(

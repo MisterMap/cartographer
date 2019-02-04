@@ -580,6 +580,19 @@ void PoseGraph2D::RunOptimization() {
   // frozen_trajectories_ and landmark_nodes_ when executing the Solve. Solve is
   // time consuming, so not taking the mutex before Solve to avoid blocking
   // foreground processing.
+  // for (auto& landmark_node : landmark_nodes_) {
+  //   if (landmark_node.first == "0") {
+  //     landmark_node.second.global_landmark_pose = transform::Rigid3d::Translation(Eigen::Vector3d(0, 0, 0));
+  //   }
+  //   if (landmark_node.first == "1") {
+  //     landmark_node.second.global_landmark_pose = transform::Rigid3d::Translation(Eigen::Vector3d(3, 3, 0));
+  //   }
+  //   if (landmark_node.first == "3") {
+  //     landmark_node.second.global_landmark_pose = transform::Rigid3d::Translation(Eigen::Vector3d(-3, 17, 0));
+  //   }
+  //   std :: cout << "landmark id: " << landmark_node.first << std::endl;
+  // }
+
   optimization_problem_->Solve(constraints_, frozen_trajectories_,
                                landmark_nodes_);
   common::MutexLocker locker(&mutex_);
