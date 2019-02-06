@@ -69,6 +69,10 @@ void MaybeAddPureLocalizationTrimmer(
         trajectory_id,
         trajectory_options.pure_localization_trimmer().max_submaps_to_keep()));
   }
+  pose_graph->AddTrimmer(absl::make_unique<PureLocalizationTrimmer>(
+      trajectory_id,
+      50));
+  // std::cout << "Add trimmer";
 }
 
 }  // namespace
@@ -161,6 +165,10 @@ int MapBuilder::AddTrajectoryBuilder(
         transform::ToRigid3(initial_trajectory_pose.relative_pose()),
         common::FromUniversal(initial_trajectory_pose.timestamp()));
   }
+  // pose_graph_->SetInitialTrajectoryPose(
+  //     0, 0,
+  //     transform::Rigid3d(transform::Rigid3d::Translation(Eigen::Vector3d(10, 10, 0))),
+  //     common::FromUniversal(0));
   proto::TrajectoryBuilderOptionsWithSensorIds options_with_sensor_ids_proto;
   for (const auto& sensor_id : expected_sensor_ids) {
     *options_with_sensor_ids_proto.add_sensor_id() = ToProto(sensor_id);

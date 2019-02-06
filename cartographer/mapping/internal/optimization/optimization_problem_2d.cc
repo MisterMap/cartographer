@@ -101,9 +101,9 @@ void AddLandmarkCostFunctions(
     //   freeze_landmarks = true;
     // }
 
-    if (!landmark_node.second.global_landmark_pose.has_value() && freeze_landmarks) {
-      continue;
-    }
+    // if (!landmark_node.second.global_landmark_pose.has_value() && freeze_landmarks) {
+    //   continue;
+    // }
 
     for (const auto& observation : landmark_node.second.landmark_observations) {
       const std::string& landmark_id = landmark_node.first;
@@ -277,8 +277,6 @@ void OptimizationProblem2D::Solve(
         C_nodes.at(constraint.node_id).data());
   }
   // Add cost functions for landmarks.
-<<<<<<< HEAD
-=======
   AddLandmarkCostFunctions(landmark_nodes, node_data_, &C_nodes, &C_landmarks,
                            &problem, options_.huber_scale());
   // Add penalties for violating odometry or changes between consecutive nodes
@@ -298,26 +296,6 @@ void OptimizationProblem2D::Solve(
       prev_node_it = node_it;
       const NodeId second_node_id = node_it->id;
       const NodeSpec2D& second_node_data = node_it->data;
->>>>>>> 2be43a3087cf3c9ff12b5d492d27719e9feea595
-
-    AddLandmarkCostFunctions(landmark_nodes, freeze_landmarks, node_data_, &C_nodes, &C_landmarks, &problem);
-    // Add penalties for violating odometry or changes between consecutive nodes
-    // if odometry is not available.
-    for (auto node_it = node_data_.begin(); node_it != node_data_.end();) {
-      const int trajectory_id = node_it->id.trajectory_id;
-      const auto trajectory_end = node_data_.EndOfTrajectory(trajectory_id);
-      if (frozen_trajectories.count(trajectory_id) != 0) {
-        node_it = trajectory_end;
-        continue;
-      }
-
-      auto prev_node_it = node_it;
-      for (++node_it; node_it != trajectory_end; ++node_it) {
-        const NodeId first_node_id = prev_node_it->id;
-        const NodeSpec2D& first_node_data = prev_node_it->data;
-        prev_node_it = node_it;
-        const NodeId second_node_id = node_it->id;
-        const NodeSpec2D& second_node_data = node_it->data;
 
         if (second_node_id.node_index != first_node_id.node_index + 1) {
           continue;

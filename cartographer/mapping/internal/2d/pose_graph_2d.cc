@@ -82,14 +82,22 @@ std::vector<SubmapId> PoseGraph2D::InitializeGlobalSubmapPoses(
             data_.initial_trajectory_poses.at(trajectory_id).to_trajectory_id,
             time);
       }
+      // optimization_problem_->AddSubmap(
+      //     trajectory_id, transform::Project2D(
+      //                        ComputeLocalToGlobalTransform(
+      //                            data_.global_submap_poses_2d, trajectory_id) *
+      //                        insertion_submaps[0]->local_pose()));
       optimization_problem_->AddSubmap(
-          trajectory_id, transform::Project2D(
-                             ComputeLocalToGlobalTransform(
-                                 data_.global_submap_poses_2d, trajectory_id) *
-                             insertion_submaps[0]->local_pose()));
+          trajectory_id, transform::Rigid2d(Eigen::Vector2d(8, 20), 3.14 / 4 + 0.15));
+
+      data_.global_submap_poses_2d = optimization_problem_->submap_data();
     }
     CHECK_EQ(1, submap_data.SizeOfTrajectoryOrZero(trajectory_id));
     const SubmapId submap_id{trajectory_id, 0};
+    // std::cout << "num global poses" << data_.global_submap_poses_2d.size() << std::endl;
+    // std::cout << "local pose" << insertion_submaps[0]->local_pose().translation() << std::endl;
+    // data_.global_submap_poses_2d.Append(0, transform::Rigid2d::Translation(Eigen::Vectro2d(10, 10)))
+    // data_.global_submap_poses_2d.at(submap_id).global_pose = transform::Rigid2d(transform::Rigid2d::Translation(Eigen::Vector2d(10, 10)));
     CHECK(data_.submap_data.at(submap_id).submap == insertion_submaps.front());
     return {submap_id};
   }
