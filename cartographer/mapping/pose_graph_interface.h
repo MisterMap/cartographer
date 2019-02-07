@@ -33,6 +33,7 @@ class PoseGraphInterface {
   // A "constraint" as in the paper by Konolige, Kurt, et al. "Efficient sparse
   // pose adjustment for 2d mapping." Intelligent Robots and Systems (IROS),
   // 2010 IEEE/RSJ International Conference on (pp. 22--29). IEEE, 2010.
+  transform::Rigid2d StartPosition;
   struct Constraint {
     struct Pose {
       transform::Rigid3d zbar_ij;

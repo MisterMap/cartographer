@@ -87,8 +87,9 @@ std::vector<SubmapId> PoseGraph2D::InitializeGlobalSubmapPoses(
       //                        ComputeLocalToGlobalTransform(
       //                            data_.global_submap_poses_2d, trajectory_id) *
       //                        insertion_submaps[0]->local_pose()));
-      optimization_problem_->AddSubmap(
-          trajectory_id, transform::Rigid2d(Eigen::Vector2d(8, 20), 3.14 / 4 + 0.15));
+      optimization_problem_->AddSubmap(trajectory_id, StartPosition);
+      std::cout << "Start position" << std::endl;
+      std::cout << StartPosition.translation() << std::endl;
 
       data_.global_submap_poses_2d = optimization_problem_->submap_data();
     }

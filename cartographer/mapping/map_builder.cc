@@ -69,9 +69,9 @@ void MaybeAddPureLocalizationTrimmer(
         trajectory_id,
         trajectory_options.pure_localization_trimmer().max_submaps_to_keep()));
   }
-  pose_graph->AddTrimmer(absl::make_unique<PureLocalizationTrimmer>(
-      trajectory_id,
-      50));
+  // pose_graph->AddTrimmer(absl::make_unique<PureLocalizationTrimmer>(
+  //     trajectory_id,
+  //    150));
   // std::cout << "Add trimmer";
 }
 
